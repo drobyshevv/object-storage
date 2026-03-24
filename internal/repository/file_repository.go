@@ -15,7 +15,6 @@ func NewFileRepository(conn *pgx.Conn) *FileRepository {
 	return &FileRepository{conn: conn}
 }
 
-// --- CREATE ---
 func (r *FileRepository) Create(ctx context.Context, f *model.File) error {
 	query := `
 		INSERT INTO files (filename, size, content_type, s3_key)
@@ -27,11 +26,10 @@ func (r *FileRepository) Create(ctx context.Context, f *model.File) error {
 		f.Filename,
 		f.Size,
 		f.ContentType,
-		f.S3Key, // 🔥 обязательно
+		f.S3Key,
 	).Scan(&f.ID, &f.CreatedAt)
 }
 
-// --- GET ALL ---
 func (r *FileRepository) GetAll(ctx context.Context) ([]model.File, error) {
 	query := `
 		SELECT id, filename, size, content_type, s3_key, created_at
@@ -55,7 +53,7 @@ func (r *FileRepository) GetAll(ctx context.Context) ([]model.File, error) {
 			&f.Filename,
 			&f.Size,
 			&f.ContentType,
-			&f.S3Key, // 🔥 обязательно
+			&f.S3Key,
 			&f.CreatedAt,
 		)
 		if err != nil {
@@ -68,7 +66,6 @@ func (r *FileRepository) GetAll(ctx context.Context) ([]model.File, error) {
 	return files, nil
 }
 
-// --- GET BY ID ---
 func (r *FileRepository) GetByID(ctx context.Context, id int) (*model.File, error) {
 	query := `
 		SELECT id, filename, size, content_type, s3_key, created_at
@@ -83,7 +80,7 @@ func (r *FileRepository) GetByID(ctx context.Context, id int) (*model.File, erro
 		&f.Filename,
 		&f.Size,
 		&f.ContentType,
-		&f.S3Key, // 🔥 обязательно
+		&f.S3Key,
 		&f.CreatedAt,
 	)
 	if err != nil {
@@ -93,7 +90,6 @@ func (r *FileRepository) GetByID(ctx context.Context, id int) (*model.File, erro
 	return &f, nil
 }
 
-// --- DELETE ---
 func (r *FileRepository) Delete(ctx context.Context, id int) error {
 	query := `DELETE FROM files WHERE id = $1`
 	_, err := r.conn.Exec(ctx, query, id)

@@ -25,7 +25,6 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// --- DB retry ---
 	var conn *pgx.Conn
 	var err error
 	for i := 0; i < 10; i++ {
@@ -40,12 +39,10 @@ func main() {
 		log.Fatal("Cannot connect to DB:", err)
 	}
 
-	// --- Run migrations ---
 	if err := db.RunMigrations(conn); err != nil {
 		log.Fatal("Migration error:", err)
 	}
 
-	// --- S3 retry ---
 	var client *s3.Client
 	for i := 0; i < 10; i++ {
 		awsCfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
@@ -81,13 +78,11 @@ func main() {
 		log.Fatal("Cannot connect to S3")
 	}
 
-	// --- App layers ---
 	repo := repository.NewFileRepository(conn)
 	storageLayer := storage.New(client, cfg.S3.Bucket)
 	serviceLayer := service.NewFileService(repo, storageLayer)
 	handlerLayer := handler.NewFileHandler(serviceLayer)
 
-	// --- Gin routes ---
 	r := gin.Default()
 	r.POST("/upload", handlerLayer.Upload)
 	r.GET("/files", handlerLayer.List)
