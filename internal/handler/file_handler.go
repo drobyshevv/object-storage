@@ -41,7 +41,12 @@ func (h *FileHandler) List(c *gin.Context) {
 }
 
 func (h *FileHandler) Download(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return
+	}
 
 	body, filename, err := h.service.GetFile(c, id)
 	if err != nil {
