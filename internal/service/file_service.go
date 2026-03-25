@@ -20,7 +20,7 @@ func NewFileService(r *repository.FileRepository, s *storage.Storage) *FileServi
 	return &FileService{repo: r, storage: s}
 }
 
-func (s *FileService) Upload(ctx context.Context, file *multipart.FileHeader) (*model.File, error) {
+func (s *FileService) Upload(ctx context.Context, file *multipart.FileHeader, folder string) (*model.File, error) {
 	src, err := file.Open()
 	if err != nil {
 		return nil, err
@@ -28,6 +28,10 @@ func (s *FileService) Upload(ctx context.Context, file *multipart.FileHeader) (*
 	defer src.Close()
 
 	key := uuid.New().String() + "_" + file.Filename
+
+	if folder != "" {
+		key = folder + "/" + key
+	}
 
 	err = s.storage.Upload(ctx, key, src)
 	if err != nil {
@@ -39,14 +43,19 @@ func (s *FileService) Upload(ctx context.Context, file *multipart.FileHeader) (*
 		Size:        file.Size,
 		ContentType: file.Header.Get("Content-Type"),
 		S3Key:       key,
+		Folder:      folder,
 	}
 
 	err = s.repo.Create(ctx, f)
 	return f, err
 }
 
-func (s *FileService) GetAll(ctx context.Context) ([]model.File, error) {
-	return s.repo.GetAll(ctx)
+func (s *FileService) GetAll(ctx context.Context, folder string) ([]model.File, error) {
+	files, err := s.repo.GetAll(ctx, folder)
+	if files == nil {
+		files = []model.File{}
+	}
+	return files, err
 }
 
 func (s *FileService) GetFile(ctx context.Context, id int) (io.ReadCloser, string, error) {

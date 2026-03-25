@@ -8,5 +8,6 @@ type File struct {
 	Size        int64
 	ContentType string
 	S3Key       string
+	Folder      string
 	CreatedAt   time.Time
 }

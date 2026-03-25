@@ -10,7 +10,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/drobyshevv/object-storage/internal/db"
 	"github.com/drobyshevv/object-storage/internal/handler"
@@ -19,16 +19,18 @@ import (
 	"github.com/drobyshevv/object-storage/internal/storage"
 	"github.com/drobyshevv/object-storage/pkg/config"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	cfg := config.Load()
 
-	var conn *pgx.Conn
+	// Подключение к БД через пул
+	var pool *pgxpool.Pool
 	var err error
 	for i := 0; i < 10; i++ {
-		conn, err = db.New(cfg.DB.URL)
+		pool, err = pgxpool.New(context.Background(), cfg.DB.URL)
 		if err == nil {
 			break
 		}
@@ -38,11 +40,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Cannot connect to DB:", err)
 	}
+	defer pool.Close()
 
-	if err := db.RunMigrations(conn); err != nil {
+	if err := db.RunMigrations(pool); err != nil {
 		log.Fatal("Migration error:", err)
 	}
 
+	// Настройка S3
 	var client *s3.Client
 	for i := 0; i < 10; i++ {
 		awsCfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
@@ -71,19 +75,30 @@ func main() {
 			time.Sleep(2 * time.Second)
 			continue
 		}
-
 		break
 	}
 	if client == nil {
 		log.Fatal("Cannot connect to S3")
 	}
 
-	repo := repository.NewFileRepository(conn)
+	// Репозиторий и сервисы
+	repo := repository.NewFileRepository(pool)
 	storageLayer := storage.New(client, cfg.S3.Bucket)
 	serviceLayer := service.NewFileService(repo, storageLayer)
 	handlerLayer := handler.NewFileHandler(serviceLayer)
 
 	r := gin.Default()
+
+	// CORS
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
+	// Роуты
 	r.POST("/upload", handlerLayer.Upload)
 	r.GET("/files", handlerLayer.List)
 	r.GET("/files/:id", handlerLayer.Download)

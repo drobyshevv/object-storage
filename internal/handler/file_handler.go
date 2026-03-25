@@ -22,7 +22,9 @@ func (h *FileHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	res, err := h.service.Upload(c, file)
+	folder := c.PostForm("folder")
+
+	res, err := h.service.Upload(c, file, folder)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -32,7 +34,9 @@ func (h *FileHandler) Upload(c *gin.Context) {
 }
 
 func (h *FileHandler) List(c *gin.Context) {
-	files, err := h.service.GetAll(c)
+	folder := c.Query("folder")
+
+	files, err := h.service.GetAll(c, folder)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
